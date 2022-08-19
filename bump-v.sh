@@ -14,7 +14,24 @@
 # Core: version $components_v
 # Components: version $core_v
 # "
-#!/bin/bash
+
+# shellcheck disable=SC2288
+true
+
+is_number() {
+    case "$1" in
+    '' | *[!0-9]*) return 0 ;;
+    *) return 1 ;;
+    esac
+}
+
+find ./ -maxdepth 2 -type f -name "package.json" ! -path "./.git/*" ! -path "./node_modules/*" ! -path ".*/node_modules/*" #-ls
+
+# find ./ -maxdepth 2 -type f ! -path "./.git/*;./node_modules/*" | while read -r _file; do
+
+#     echo "Process ${_file} here"
+
+# done
 
 #get highest tag number
 VERSION=$(git describe --abbrev=0 --tags 2>/dev/null)
@@ -45,10 +62,11 @@ NEW_TAG="${VNUM1}.${VNUM2}.${VNUM3}"
 GIT_COMMIT=$(git rev-parse HEAD)
 CURRENT_COMMIT_TAG=$(git describe --contains $GIT_COMMIT 2>/dev/null)
 
-#only tag if no tag already (would be better if the git describe command above could have a silent option)
+#Current commit tag only tag if no tag already (would be better if the git describe command above could have a silent option)
 if [ -z "$CURRENT_COMMIT_TAG" ]; then
     echo "Updating $VERSION to $NEW_TAG"
-    git tag $NEW_TAG
+    # Default release note
+    git tag -a $NEW_TAG -m "Bump new Tag version ${NEW_TAG}."
     git push --tags
     echo "Tag created and pushed: $NEW_TAG"
 else
