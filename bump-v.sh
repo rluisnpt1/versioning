@@ -25,12 +25,9 @@ is_number() {
     esac
 }
 
-find ./ -maxdepth 2 -type f -name "package.json" ! -path "./.git/*" ! -path "./node_modules/*" ! -path ".*/node_modules/*" #-ls
-
+# find ./ -maxdepth 2 -type f -name "package.json" ! -path "./.git/*" ! -path "./node_modules/*" ! -path ".*/node_modules/*" #-ls
 # find ./ -maxdepth 2 -type f ! -path "./.git/*;./node_modules/*" | while read -r _file; do
-
 #     echo "Process ${_file} here"
-
 # done
 
 #get highest tag number
@@ -61,13 +58,19 @@ NEW_TAG="${VNUM1}.${VNUM2}.${VNUM3}"
 #get current hash and see if it already has a tag
 GIT_COMMIT=$(git rev-parse HEAD)
 CURRENT_COMMIT_TAG=$(git describe --contains $GIT_COMMIT 2>/dev/null)
+GET_LIST_FILES_CHANGED_LAST_COMMIT=$(git show --oneline --name-only --pretty='' HEAD)
 
 #Current commit tag only tag if no tag already (would be better if the git describe command above could have a silent option)
 if [ -z "$CURRENT_COMMIT_TAG" ]; then
-    echo "Updating $VERSION to $NEW_TAG"
+
+    for value in $GET_LIST_FILES_CHANGED_LAST_COMMIT; do
+        echo $value
+    done
+
+    echo "Bumping to a new Version: CURRENT $VERSION to $NEW_TAG"
     # Default release note
-    git tag -a $NEW_TAG -m "Bump new Tag version ${NEW_TAG}."
-    git push --tags
+    # git tag -a $NEW_TAG -m "Bump new Tag version ${NEW_TAG}."
+    #git push --tags
     echo "Tag created and pushed: $NEW_TAG"
 else
     echo "This commit is already tagged as: $CURRENT_COMMIT_TAG"
