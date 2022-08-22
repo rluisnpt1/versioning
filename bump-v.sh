@@ -266,6 +266,7 @@ fi
 #get current hash and see if it already has a tag
 GIT_COMMIT=$(git rev-parse HEAD)
 CURRENT_COMMIT_TAG=$(git describe --contains $GIT_COMMIT 2>/dev/null)
+CURRENT_COMMIT_TAG=$(git describe --contains $(git rev-parse HEAD) 2>/dev/null)
 GET_LIST_FILES_CHANGED_LAST_COMMIT=$(git show --oneline --name-only --pretty='' HEAD)
 
 #Current commit tag only tag if no tag already (would be better if the git describe command above could have a silent option)
@@ -304,8 +305,8 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
     do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
     # Default release note
-    # git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
-    #git push --tags
+    ## git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
+    ##git push --tags
     echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
 else
     echo -e "\n =================== \n 🏁; This commit is already tagged as: $CURRENT_COMMIT_TAG"
