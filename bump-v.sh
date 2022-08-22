@@ -28,17 +28,66 @@ REL_PREFIX="release-"
 COMMIT_MSG_PREFIX="chore: " # Commit msg prefix for the file changes this script makes
 PUSH_DEST="origin"
 JSON_FILES=()
+FLAG_BUMP_MINOR=false
 
-SHOULD_UPDATE_COMPONENTS=false
-SHOULD_UPDATE_CORE=false
-SHOULD_UPDATE_STORYBOOK=false
-SHOULD_UPDATE_ROOT=true
+source "$MODULE_DIR/ci_scripts/styles.sh"
+source "$MODULE_DIR/ci_scripts/icons.sh"
 
-is_number() {
-    case "$1" in
-    '' | *[!0-9]*) return 0 ;;
-    *) return 1 ;;
-    esac
+# Process script options
+process-arguments() {
+    local OPTIONS OPTIND OPTARG
+
+    # Get positional parameters
+    while getopts ":u:p:m:f:hbcl" OPTIONS; do # Note: Adding the first : before the flags takes control of flags and prevents default error msgs.
+        case "$OPTIONS" in
+        h)
+            # Show help
+            usage
+            exit 0
+            ;;
+        m)
+            REL_NOTE=$OPTARG
+            # Custom release note
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Release note: ${S_NORM} '$REL_NOTE'"
+            ;;
+        u)
+            FLAG_BUMP_MINOR=false
+            FLAG_BUMP_MINOR=${OPTARG} # Replace default with user input
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Update Minor Version when bumping <${S_NORM}${FLAG_BUMP_MINOR}${S_LIGHT}>, as the last action in this script."
+            ;;
+        p)
+            FLAG_PUSH=true
+            PUSH_DEST=${OPTARG} # Replace default with user input
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Pushing to <${S_NORM}${PUSH_DEST}${S_LIGHT}>, as the last action in this script."
+            ;;
+        n)
+            FLAG_NOCOMMIT=true
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Disable commit after tagging release."
+            ;;
+        b)
+            FLAG_NOBRANCH=true
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Disable committing to new branch."
+            ;;
+        c)
+            FLAG_NOCHANGELOG=true
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Disable updating CHANGELOG.md automatically with new commits since last release tag."
+            ;;
+        l)
+            FLAG_CHANGELOG_PAUSE=true
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Pause enabled for amending CHANGELOG.md"
+            ;;
+        \?)
+            echo -e "\n${I_ERROR}${S_ERROR} Invalid option: ${S_WARN}-$OPTARG" >&2
+            echo
+            exit 1
+            ;;
+        :)
+            echo -e "\n${I_ERROR}${S_ERROR} Option ${S_WARN}-$OPTARG ${S_ERROR}requires an argument." >&2
+            echo
+            exit 1
+            ;;
+        esac
+    done
 }
 
 # Only tag if tag doesn't already exist
@@ -114,10 +163,13 @@ do-package_JSON_file-bump() {
 
 # Dump git log history to CHANGELOG.md
 do-changelog() {
+    [ "$FLAG_NOCHANGELOG" = true ] && return
+
+    V_PREV="$1"
 
     local COMMITS_MSG LOG_MSG RANGE
 
-    RANGE=$([ "$(git tag -l v"${V_PREV}")" ] && echo "v${V_PREV}...HEAD")
+    RANGE=$(["$(git tag -l v"${V_PREV}")"] && echo "v${V_PREV}...HEAD")
     COMMITS_MSG=$(git log --pretty=format:"- %s" "${RANGE}" 2>&1)
     # shellcheck disable=SC2181
     if [ ! "$?" -eq 0 ]; then
@@ -168,18 +220,26 @@ do-new-tag-version() {
     #replace . with space so can split into an array
     VERSION_BITS=(${LOCAL_VERSION//./ })
     #get number parts and increase last one by 1
-    VNUM1=${VERSION_BITS[0]}
-    VNUM2=${VERSION_BITS[1]}
+    V_MAJOR=${VERSION_BITS[0]}
+    V_MINOR=${VERSION_BITS[1]}
     PATCH=${VERSION_BITS[2]}
-    PATCH=$((PATCH + 1))
+
+    if [ "$FLAG_BUMP_MINOR" = true ]; then
+        V_MINOR=$((V_MINOR + 1))
+    else
+        PATCH=$((PATCH + 1))
+    fi
 
     #create new tag
-    RESULT_TAG="${VNUM1}.${VNUM2}.${PATCH}"
+    RESULT_TAG="${V_MAJOR}.${V_MINOR}.${PATCH}"
 }
 # find ./ -maxdepth 2 -type f -name "package.json" ! -path "./.git/*" ! -path "./node_modules/*" ! -path ".*/node_modules/*" #-ls
 # find ./ -maxdepth 2 -type f ! -path "./.git/*;./node_modules/*" | while read -r _file; do
 #     echo "Process ${_file} here"
 # done
+
+###########################################################################################################################################################################
+process-arguments "$@"
 
 #get highest tag number
 VERSION=$(git describe --abbrev=0 --tags 2>/dev/null)
@@ -221,7 +281,7 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
         PKG_JSON="$MODULE_DIR/$val"
         #check if is directory
         if [[ -d $PKG_JSON ]]; then
-            echo -n "############ $val ############"
+            echo -e "\n =================== $val ==================="
             #search and read Package.json within dir
             SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
             #In case of the procject math then extract version from json file
@@ -235,7 +295,7 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
 
     done
 
-    echo -e "\n =================== \n Bumping to a new Version: CURRENT $VERSION to $V_NEW_TAG"
+    echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
     # Default release note
     # git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
     #git push --tags
