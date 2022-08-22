@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Commits
 
+- chore: updated package.json, updated package-lock.json, bumped to [`de7471a`](https://github.com/rluisnpt1/versioning/commit/de7471a295f2e83b31fe03b591bc490337325b6f)
 - feat: new feature [`c7d919d`](https://github.com/rluisnpt1/versioning/commit/c7d919dd9d7520a46a0a9dc7882315f9cc7bd1af)
 
 ## [1.0.5](https://github.com/rluisnpt1/versioning/compare/1.0.4...1.0.5) - 2022-08-22
