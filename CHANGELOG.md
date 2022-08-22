@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [1.0.5](https://github.com/rluisnpt1/versioning/compare/1.0.5...1.0.5)
+## [1.0.6](https://github.com/rluisnpt1/versioning/compare/1.0.5...1.0.6)
 
 
 
@@ -15,21 +15,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - chore: new changes [`f01b3ef`](https://github.com/rluisnpt1/versioning/commit/f01b3ef0eba183d03d090b13d7e20a4fe3d0fbd4)
 - chore: updated package.json, updated package-lock.json, bumped to [`de7471a`](https://github.com/rluisnpt1/versioning/commit/de7471a295f2e83b31fe03b591bc490337325b6f)
+- chore: updated package.json, updated package-lock.json, bumped to [`6a4ba97`](https://github.com/rluisnpt1/versioning/commit/6a4ba97216de4ea7856b8dca9af9b669fc0be8e8)
 - chore: updated package.json, updated package-lock.json, updated CHANGELOG.md, bumped 1.0.3 -&gt; 1.0.4 [`256ae22`](https://github.com/rluisnpt1/versioning/commit/256ae22d71fd6afdff51192fa80f994a30be4ff1)
 - chore: updated package.json, updated package-lock.json, bumped to [`67f8269`](https://github.com/rluisnpt1/versioning/commit/67f8269c87fac476255b96ead9079499bebb6bde)
 - chore: updated package.json, updated package-lock.json, bumped to [`9f4702a`](https://github.com/rluisnpt1/versioning/commit/9f4702a7acc0c70591b3b2badaa8067773e92f9c)
 - chore: updated package.json, updated package-lock.json, bumped to [`d6cbebe`](https://github.com/rluisnpt1/versioning/commit/d6cbebe7dfaa7108709426235048b6ff49b6b72b)
+- chore: new changes [`055bcc2`](https://github.com/rluisnpt1/versioning/commit/055bcc2acc51b8e7a4f8b09e5e31e7765db448e4)
 - feat: new feature [`c7d919d`](https://github.com/rluisnpt1/versioning/commit/c7d919dd9d7520a46a0a9dc7882315f9cc7bd1af)
 
-## [1.0.5](https://github.com/rluisnpt1/versioning/compare/1.0.4...1.0.5) - 2022-08-22
+## [1.0.5](https://github.com/rluisnpt1/versioning/compare/v1.0.5...1.0.5) - 2022-08-22
 
 
 
 
 ### Commits
 
-- ci: chenges release script [`61bba12`](https://github.com/rluisnpt1/versioning/commit/61bba12490d72da970c6a9875c6d595131094084)
 - chore: bumped to [`7a41b23`](https://github.com/rluisnpt1/versioning/commit/7a41b23b611bd565972390eb3dccd87f02f857f8)
+
+## [v1.0.5](https://github.com/rluisnpt1/versioning/compare/1.0.4...v1.0.5) - 2022-08-22
+
+
+
+
+### Commits
+
+- chore: new changes [`f01b3ef`](https://github.com/rluisnpt1/versioning/commit/f01b3ef0eba183d03d090b13d7e20a4fe3d0fbd4)
+- ci: chenges release script [`61bba12`](https://github.com/rluisnpt1/versioning/commit/61bba12490d72da970c6a9875c6d595131094084)
+- chore: updated package.json, updated package-lock.json, bumped to [`de7471a`](https://github.com/rluisnpt1/versioning/commit/de7471a295f2e83b31fe03b591bc490337325b6f)
+- chore: updated package.json, updated package-lock.json, bumped to [`6a4ba97`](https://github.com/rluisnpt1/versioning/commit/6a4ba97216de4ea7856b8dca9af9b669fc0be8e8)
+- chore: updated package.json, updated package-lock.json, updated CHANGELOG.md, bumped 1.0.3 -&gt; 1.0.4 [`256ae22`](https://github.com/rluisnpt1/versioning/commit/256ae22d71fd6afdff51192fa80f994a30be4ff1)
+- chore: updated package.json, updated package-lock.json, bumped to [`67f8269`](https://github.com/rluisnpt1/versioning/commit/67f8269c87fac476255b96ead9079499bebb6bde)
+- chore: updated package.json, updated package-lock.json, bumped to [`9f4702a`](https://github.com/rluisnpt1/versioning/commit/9f4702a7acc0c70591b3b2badaa8067773e92f9c)
+- chore: updated package.json, updated package-lock.json, bumped to [`d6cbebe`](https://github.com/rluisnpt1/versioning/commit/d6cbebe7dfaa7108709426235048b6ff49b6b72b)
+- feat: new feature [`c7d919d`](https://github.com/rluisnpt1/versioning/commit/c7d919dd9d7520a46a0a9dc7882315f9cc7bd1af)
 
 ## [1.0.4](https://github.com/rluisnpt1/versioning/compare/v1.0.4...1.0.4) - 2022-08-22
 
