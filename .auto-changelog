@@ -1,0 +1,16 @@
+{
+    "template": "./ci_scripts/keepachangelog.hbs",
+    "commitLimit": false,
+    "unreleased": true,
+    "issueUrl": "http://jira.user.com.br/browse/{id}",
+    "replaceText": {
+        "[Ff]eature:": "",
+        "[Ff]ix:": "",
+        "[Bb]reak:": "",
+        "([A-Z]+-\\d+)": "[$1](http://jira.user.com.br/browse/$1) - "
+    },
+    "includeBranch": [
+        "dev",
+        "main"
+    ]
+}
