@@ -131,7 +131,7 @@ do-branch() {
 # Stage & commit all files modified by this script
 do-commit() {
     [ "$FLAG_NOCOMMIT" = true ] && return
-
+    git add .
     GIT_MSG+="$(get-commit-msg)"
     echo -e "\n${S_NOTICE}Committing..."
     COMMIT_MSG=$(git commit -m "${COMMIT_MSG_PREFIX}${GIT_MSG}" 2>&1)
@@ -279,7 +279,7 @@ fi
 #get current hash and see if it already has a tag
 GIT_COMMIT=$(git rev-parse HEAD)
 CURRENT_COMMIT_TAG=$(git describe --contains $GIT_COMMIT 2>/dev/null)
-CURRENT_COMMIT_TAG=$(git describe --contains $(git rev-parse HEAD) 2>/dev/null)
+#CURRENT_COMMIT_TAG=$(git describe --contains $(git rev-parse HEAD) 2>/dev/null)
 GET_LIST_FILES_CHANGED_LAST_COMMIT=$(git show --oneline --name-only --pretty='' HEAD)
 
 #Current commit tag only tag if no tag already (would be better if the git describe command above could have a silent option)
@@ -316,11 +316,11 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     done
 
     echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
-    #do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
+    do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
     # Default release note
     echo "$(npm run changelog)"
 
-    do-branch "$V_NEW_TAG"
+    #do-branch "$V_NEW_TAG"
     do-commit
     do-tag "$VERSION" "$V_NEW_TAG"
     do-push "$V_NEW_TAG"
