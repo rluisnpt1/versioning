@@ -1,19 +1,5 @@
 #!/bin/bash
 
-# gravity_v=$(node -pe "require('./package.json')['version']")
-# components_v=$(node -pe "require('./webproj1/package.json')['version']")
-# core_v=$(node -pe "require('./webproj2/package.json')['version']")
-
-# echo "
-# gravity: version $gravity_v
-# Core: version $components_v
-# Components: version $core_v
-# "
-# find ./ -maxdepth 2 -type f -name "package.json" ! -path "./.git/*" ! -path "./node_modules/*" ! -path ".*/node_modules/*" #-ls
-# find ./ -maxdepth 2 -type f ! -path "./.git/*;./node_modules/*" | while read -r _file; do
-#     echo "Process ${_file} here"
-# done
-
 # shellcheck disable=SC2288
 true
 MODULE_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
@@ -31,19 +17,6 @@ FLAG_BUMP_MINOR=false
 
 source "$MODULE_DIR/ci_scripts/styles.sh"
 source "$MODULE_DIR/ci_scripts/icons.sh"
-
-get-commit-msg() {
-    local CMD
-    V_PREV="$1"
-    V_NEW="$2"
-
-    CMD=$([ ! "${V_PREV}" = "${V_NEW}" ] && echo "${V_PREV} ->" || echo "to")
-    echo bumped "$CMD" "$V_NEW"
-}
-
-capitalise() {
-    echo "$(tr '[:lower:]' '[:upper:]' <<<"${1:0:1}")${1:1}"
-}
 
 # Process script options
 process-arguments() {
@@ -102,15 +75,6 @@ process-arguments() {
     done
 }
 
-# Only tag if tag doesn't already exist
-check-tag-exists() {
-    TAG_MSG=$(git tag -l "v${V_NEW_TAG}")
-    if [ -n "$TAG_MSG" ]; then
-        echo -e "\n${I_STOP} ${S_ERROR}Error: A release with that tag version number already exists!\n\n$TAG_MSG\n"
-        exit 1
-    fi
-}
-
 GetParentOfFilesChangedInGitCommit() {
     proj_dir_name=("")
     for value in $1; do
@@ -122,6 +86,101 @@ GetParentOfFilesChangedInGitCommit() {
     PARENT_PROJECTS_DIR="$proj_dir_name"
     PARENT_PROJECTS_DIR=$(printf '%s\n' "$PARENT_PROJECTS_DIR" | awk -v RS='[,[:space:]]+' '!a[$0]++{printf "%s%s", $0, RT}')
     PARENT_PROJECTS_DIR="${PARENT_PROJECTS_DIR%,*}"
+}
+
+capitalise() {
+    echo "$(tr '[:lower:]' '[:upper:]' <<<"${1:0:1}")${1:1}"
+}
+
+get-commit-msg() {
+    local CMD
+    V_PREV="$1"
+    V_NEW="$2"
+
+    CMD=$([ ! "${V_PREV}" = "${V_NEW}" ] && echo "${V_PREV} ->" || echo "to")
+    echo bumped "$CMD" "$V_NEW"
+}
+
+# Only tag if tag doesn't already exist
+check-tag-exists() {
+    TAG_MSG=$(git tag -l "v${V_NEW_TAG}")
+    if [ -n "$TAG_MSG" ]; then
+        echo -e "\n${I_STOP} ${S_ERROR}Error: A release with that tag version number already exists!\n\n$TAG_MSG\n"
+        exit 1
+    fi
+}
+
+#Do checkout no a new branch
+do-branch() {
+    [ "$FLAG_NOBRANCH" = true ] && return
+    V_NEW="$1"
+    echo -e "\n${S_NOTICE}Creating new release branch..."
+
+    BRANCH_MSG=$(git branch "${REL_PREFIX}${V_NEW}" 2>&1)
+    if [ -z "$BRANCH_MSG" ]; then
+        BRANCH_MSG=$(git checkout "${REL_PREFIX}${V_NEW}" 2>&1)
+        echo -e "\n${I_OK} ${S_NOTICE}${BRANCH_MSG}"
+    else
+        echo -e "\n${I_STOP} ${S_ERROR}Error\n$BRANCH_MSG\n"
+        exit 1
+    fi
+
+    # REL_PREFIX
+}
+
+# Stage & commit all files modified by this script
+do-commit() {
+    [ "$FLAG_NOCOMMIT" = true ] && return
+
+    GIT_MSG+="$(get-commit-msg)"
+    echo -e "\n${S_NOTICE}Committing..."
+    COMMIT_MSG=$(git commit -m "${COMMIT_MSG_PREFIX}${GIT_MSG}" 2>&1)
+    # shellcheck disable=SC2181
+    if [ ! "$?" -eq 0 ]; then
+        echo -e "\n${I_STOP} ${S_ERROR}Error\n$COMMIT_MSG\n"
+        exit 1
+    else
+        echo -e "\n${I_OK} ${S_NOTICE}$COMMIT_MSG"
+    fi
+}
+
+# Create a Git tag using the SemVar
+do-tag() {
+    OLD="$1"
+    V_NEW="$2"
+    if [ -z "${REL_NOTE}" ]; then
+        # Default release note
+        git tag -a "${V_NEW}" -m "Tag to a new version "$OLD" ---> ${V_NEW}."
+    else
+        # Custom release note
+        git tag -a "${V_NEW}" -m "${REL_NOTE}"
+    fi
+    echo -e "\n${I_OK} ${S_NOTICE}Added GIT tag"
+}
+
+# Pushes files + tags to remote repo. Changes are staged by earlier functions
+do-push() {
+    [ "$FLAG_NOCOMMIT" = true ] && return
+    V_NEW="$1"
+    if [ "$FLAG_PUSH" = true ]; then
+        CONFIRM="Y"
+    else
+        echo -ne "\n${S_QUESTION}Push tags to <${S_NORM}${PUSH_DEST}${S_QUESTION}>? [${S_NORM}N/y${S_QUESTION}]: "
+        read -r CONFIRM
+    fi
+
+    case "$CONFIRM" in
+    [yY][eE][sS] | [yY])
+        echo -e "\n${S_NOTICE}Pushing files + tags to <${S_NORM}${PUSH_DEST}${S_NOTICE}>..."
+        PUSH_MSG=$(git push "${PUSH_DEST}" "$V_NEW" 2>&1) # Push new tag
+        if [ ! "$PUSH_MSG" -eq 0 ]; then
+            echo -e "\n${I_STOP} ${S_WARN}Warning\n$PUSH_MSG"
+            # exit 1
+        else
+            echo -e "\n${I_OK} ${S_NOTICE}$PUSH_MSG"
+        fi
+        ;;
+    esac
 }
 
 extract_version_from_json() {
@@ -259,12 +318,13 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
     #do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
     # Default release note
-    # echo "$(npm run changelog)"
-    # git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
-    # git push --tags
-    do_change_log
+    echo "$(npm run changelog)"
 
-    echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
+    do-branch "$V_NEW_TAG"
+    do-commit
+    do-tag "$VERSION" "$V_NEW_TAG"
+    do-push "$V_NEW_TAG"
+    #echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
 else
     echo -e "\n =================== \n 🏁; This commit is already tagged as: $CURRENT_COMMIT_TAG"
 fi
