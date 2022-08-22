@@ -242,11 +242,11 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
         PKG_JSON="$MODULE_DIR/$val"
         #check if is directory
         if [[ -d $PKG_JSON ]]; then
-            echo -e "\n =================== $val ==================="
-            #search and read Package.json within dir
-            SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
             #In case of the procject math then extract version from json file
             if [[ "$val" == "components" || "$val" == "core" || "$val" == "storybook" ]]; then
+                echo -e "\n =================== $val ==================="
+                #search and read Package.json within dir
+                SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
                 extract_version_from_json "${SCRIPT_VER}"
                 do-new-tag-version "$result"
                 message "$val" "$result" "$RESULT_TAG"
@@ -262,7 +262,7 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     # echo "$(npm run changelog)"
     # git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
     # git push --tags
-    source "$MODULE_DIR/ci_scripts/changelog.sh"
+    do_change_log
 
     echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
 else
