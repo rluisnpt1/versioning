@@ -1,3 +1,15 @@
+## 1.0.4 (August 22, 2022)
+- chore: updated package.json, updated package-lock.json, updated CHANGELOG.md, bumped 1.0.3 -> 1.0.4
+- chore: updated package.json, updated package-lock.json, bumped to
+- chore: updated package.json, updated package-lock.json, bumped to
+- chore: updated package.json, updated package-lock.json, bumped to
+- chore: updated package.json, updated package-lock.json, bumped to
+- feat: new feature
+- ci: chenges release script
+- ci: script fix
+- test: new script
+- test: new script
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
