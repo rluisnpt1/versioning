@@ -323,8 +323,10 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     #do-branch "$V_NEW_TAG"
     do-commit
     do-tag "$VERSION" "$V_NEW_TAG"
-    do-push "$V_NEW_TAG"
-    #echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
+    #do-push "$V_NEW_TAG"
+    git push origin dev --tags
+
+    echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
 else
     echo -e "\n =================== \n 🏁; This commit is already tagged as: $CURRENT_COMMIT_TAG"
 fi
