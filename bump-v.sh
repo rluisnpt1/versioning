@@ -257,11 +257,11 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     done
 
     echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
-    #do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
+    do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
     # Default release note
     echo "$(npm run changelog)"
-    ## git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
-    ##git push --tags
+    git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
+    git push --tags
     echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
 else
     echo -e "\n =================== \n 🏁; This commit is already tagged as: $CURRENT_COMMIT_TAG"
