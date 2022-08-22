@@ -123,6 +123,24 @@ extract_version_from_json() {
     done
     result="$RETURNV"
 }
+updatePackageJsonVersion() {
+    V_NEW_TAG_LOCAL="$1"
+    NPM_MSG=$(npm version "${V_NEW_TAG_LOCAL}" --git-tag-version=false --force 2>&1)
+    # shellcheck disable=SC2181
+    if [ ! "$?" -eq 0 ]; then
+        echo -e "\n${I_STOP} ${S_ERROR}Error updating <package.json> and/or <package-lock.json>.\n\n$NPM_MSG\n"
+        exit 1
+    else
+        git add package.json
+        GIT_MSG+="updated package.json, "
+        if [ -f package-lock.json ]; then
+            git add package-lock.json
+            GIT_MSG+="updated package-lock.json, "
+            NOTICE_MSG+=" and <${S_NORM}package-lock.json${S_NOTICE}>"
+        fi
+        echo -e "\n${I_OK} ${S_NOTICE}Bumped version in ${NOTICE_MSG}."
+    fi
+}
 
 do-package_JSON_file-bump() {
     V_PREV_TAG_LOCAL="$1"
@@ -139,23 +157,11 @@ do-package_JSON_file-bump() {
 
             ## NAVIGATE INTO DIR
             cd "./$V_PKG_JSON_DIR/"
-            NPM_MSG=$(npm version "${V_NEW_TAG_LOCAL}" --git-tag-version=false --force 2>&1)
-            # shellcheck disable=SC2181
-            if [ ! "$?" -eq 0 ]; then
-                echo -e "\n${I_STOP} ${S_ERROR}Error updating <package.json> and/or <package-lock.json>.\n\n$NPM_MSG\n"
-                exit 1
-            else
-                git add package.json
-                GIT_MSG+="updated package.json, "
-                if [ -f package-lock.json ]; then
-                    git add package-lock.json
-                    GIT_MSG+="updated package-lock.json, "
-                    NOTICE_MSG+=" and <${S_NORM}package-lock.json${S_NOTICE}>"
-                fi
-                echo -e "\n${I_OK} ${S_NOTICE}Bumped version in ${NOTICE_MSG}."
-            fi
+            updatePackageJsonVersion "$V_NEW_TAG_LOCAL"
             # NAVIGATE OUT DIRECTORY
             cd ..
+        else
+            updatePackageJsonVersion "$V_NEW_TAG_LOCAL"
         fi
 
     fi
@@ -274,28 +280,29 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     # Read the split words into an array based on space delimiter
     read -a strarr <<<"$PARENT_PROJECTS_DIR"
     # Print each value of the array by using the loop
-    for val in "${strarr[@]}"; do
-        message() {
-            printf "\n $1 changes detected bump version: FROM $2 TO $3 \n"
-        }
-        PKG_JSON="$MODULE_DIR/$val"
-        #check if is directory
-        if [[ -d $PKG_JSON ]]; then
-            echo -e "\n =================== $val ==================="
-            #search and read Package.json within dir
-            SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
-            #In case of the procject math then extract version from json file
-            if [[ "$val" == "components" || "$val" == "core" || "$val" == "storybook" ]]; then
-                extract_version_from_json "${SCRIPT_VER}"
-                do-new-tag-version "$result"
-                message "$val" "$result" "$RESULT_TAG"
-                do-package_JSON_file-bump "$result" "$RESULT_TAG" "$val"
-            fi
-        fi
+    # for val in "${strarr[@]}"; do
+    #     message() {
+    #         printf "\n $1 changes detected bump version: FROM $2 TO $3 \n"
+    #     }
+    #     PKG_JSON="$MODULE_DIR/$val"
+    #     #check if is directory
+    #     if [[ -d $PKG_JSON ]]; then
+    #         echo -e "\n =================== $val ==================="
+    #         #search and read Package.json within dir
+    #         SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
+    #         #In case of the procject math then extract version from json file
+    #         if [[ "$val" == "components" || "$val" == "core" || "$val" == "storybook" ]]; then
+    #             extract_version_from_json "${SCRIPT_VER}"
+    #             do-new-tag-version "$result"
+    #             message "$val" "$result" "$RESULT_TAG"
+    #             do-package_JSON_file-bump "$result" "$RESULT_TAG" "$val"
+    #         fi
+    #     fi
 
-    done
+    # done
 
     echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
+    do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
     # Default release note
     # git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
     #git push --tags
