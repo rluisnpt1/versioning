@@ -4,16 +4,15 @@
 # components_v=$(node -pe "require('./webproj1/package.json')['version']")
 # core_v=$(node -pe "require('./webproj2/package.json')['version']")
 
-export VERSION=$(git tag --sort=-committerdate | head -1)
-export PREVIOUS_VERSION=$(git tag --sort=-committerdate | head -2 | awk '{split($0, tags, "\n")} END {print tags[1]}')
-export CHANGES=$(git log --pretty="- %s" $VERSION...$PREVIOUS_VERSION)
-printf "# 🎁 Release notes (\`$VERSION\`)\n\n## Changes\n$CHANGES\n\n## Metadata\n\`\`\`\nThis version -------- $VERSION\nPrevious version ---- $PREVIOUS_VERSION\nTotal commits ------- $(echo "$CHANGES" | wc -l)\n\`\`\`\n" >release_notes.md
-
 # echo "
 # gravity: version $gravity_v
 # Core: version $components_v
 # Components: version $core_v
 # "
+# find ./ -maxdepth 2 -type f -name "package.json" ! -path "./.git/*" ! -path "./node_modules/*" ! -path ".*/node_modules/*" #-ls
+# find ./ -maxdepth 2 -type f ! -path "./.git/*;./node_modules/*" | while read -r _file; do
+#     echo "Process ${_file} here"
+# done
 
 # shellcheck disable=SC2288
 true
@@ -198,10 +197,6 @@ do-new-tag-version() {
     #create new tag
     RESULT_TAG="${V_MAJOR}.${V_MINOR}.${PATCH}"
 }
-# find ./ -maxdepth 2 -type f -name "package.json" ! -path "./.git/*" ! -path "./node_modules/*" ! -path ".*/node_modules/*" #-ls
-# find ./ -maxdepth 2 -type f ! -path "./.git/*;./node_modules/*" | while read -r _file; do
-#     echo "Process ${_file} here"
-# done
 
 ###########################################################################################################################################################################
 process-arguments "$@"
@@ -264,6 +259,7 @@ if [ -z "$CURRENT_COMMIT_TAG" ]; then
     echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
     #do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
     # Default release note
+    echo "$(npm run changelog)"
     ## git tag -a $V_NEW_TAG -m "Bump new Tag version ${V_NEW_TAG}."
     ##git push --tags
     echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
