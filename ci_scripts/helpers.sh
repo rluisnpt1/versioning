@@ -65,7 +65,7 @@ process-arguments() {
     local OPTIONS OPTIND OPTARG
 
     # Get positional parameters
-    while getopts ":v:p:m:f:hbncl" OPTIONS; do # Note: Adding the first : before the flags takes control of flags and prevents default error msgs.
+    while getopts ":v:p:m:f:ahbncl" OPTIONS; do # Note: Adding the first : before the flags takes control of flags and prevents default error msgs.
         case "$OPTIONS" in
         h)
             # Show help
@@ -90,6 +90,11 @@ process-arguments() {
             FLAG_PUSH=true
             PUSH_DEST=${OPTARG} # Replace default with user input
             echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Pushing to <${S_NORM}${PUSH_DEST}${S_LIGHT}>, as the last action in this script."
+            ;;
+        a)
+            AUTO_VERSION=true
+            PUSH_AUTO_VERSION=${OPTARG}
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}, ${S_NORM}false${S_LIGHT} as AUTOMATED VERSION."
             ;;
         n)
             FLAG_NOCOMMIT=true
@@ -174,16 +179,25 @@ process-version() {
         echo -e "\n${S_NOTICE}You selected version using [-v]:" "${S_WARN}${V_USR_SUPPLIED}"
         V_NEW="${V_USR_SUPPLIED}"
     else
-        # Display a suggested version
-        echo -ne "\n${S_QUESTION}Enter a new version number or press <enter> to use [${S_NORM}$V_SUGGEST${S_QUESTION}]: "
-        echo -ne "$S_WARN"
-        read -r V_USR_INPUT
 
-        if [ "$V_USR_INPUT" = "" ]; then
+        if [[ "$AUTO_VERSION" != true && "$PUSH_AUTO_VERSION" != false ]]; then
+            echo -e "\n${S_QUESTION}Automatic version selected [${S_NORM}$V_SUGGEST${S_QUESTION}]: "
+            echo -e "$S_WARN"
+
             # User accepted the suggested version
             V_NEW=$V_SUGGEST
         else
-            V_NEW=$V_USR_INPUT
+            # Display a suggested version
+            echo -ne "\n${S_QUESTION}Enter a new version number or press <enter> to use [${S_NORM}$V_SUGGEST${S_QUESTION}]: "
+            echo -ne "$S_WARN"
+            read -r V_USR_INPUT
+
+            if [ "$V_USR_INPUT" = "" ]; then
+                # User accepted the suggested version
+                V_NEW=$V_SUGGEST
+            else
+                V_NEW=$V_USR_INPUT
+            fi
         fi
     fi
 }
@@ -235,8 +249,21 @@ check-tag-exists() {
         exit 1
     fi
 }
+extract_version_from_pkgjson() {
+    # NPM environment variables are fetched with cross-platform tool cross-env (overkill to use a dependency, but seems the only way AFAIK to get npm vars)
+    SCRIPT_VER="$1"
+    RETURNV=
+    for env_var in "${SCRIPT_VER[@]}"; do
+        env_var_val=$(eval "echo \$${env_var}" | awk -F: '{ print $2 }' | sed 's/[",]//g' | sed "s/^[ \t]*//")
+        printf "\n Reading package.json version at $val : $env_var_val"
+        RETURNV="$env_var_val"
+    done
+    result="$RETURNV"
+}
+check_parent_project_files_changed() {
 
-GetParentOfFilesChangedInGitCommit() {
+    echo -e "\n${S_NOTICE}Cheking commits into parents projects"
+
     GET_LIST_FILES_CHANGED_LAST_COMMIT=$(git show --oneline --name-only --pretty='' HEAD)
     proj_dir_name=("")
     for value in "$GET_LIST_FILES_CHANGED_LAST_COMMIT"; do
@@ -248,6 +275,40 @@ GetParentOfFilesChangedInGitCommit() {
     PARENT_PROJECTS_DIR="$proj_dir_name"
     PARENT_PROJECTS_DIR=$(printf '%s\n' "$PARENT_PROJECTS_DIR" | awk -v RS='[,[:space:]]+' '!a[$0]++{printf "%s%s", $0, RT}')
     PARENT_PROJECTS_DIR="${PARENT_PROJECTS_DIR%,*}"
+}
+
+do-update-parent-project() {
+
+    echo -e "\n${S_NOTICE} updating parent project package json"
+
+    # Set space as the delimiter
+    IFS=' '
+
+    # Read the split words into an array based on space delimiter
+    read -a strarr <<<"$PARENT_PROJECTS_DIR"
+
+    # Print each value of the array by using the loop
+    for val in "${strarr[@]}"; do
+
+        echo "$val"
+
+        PKG_JSON="$MODULE_DIR/$val"
+        #check if is directory
+        if [[ -d $PKG_JSON ]]; then
+            #In case of the procject math then extract version from json file
+            if [[ "$val" == "components" || "$val" == "core" || "$val" == "storybook" ]]; then
+                echo -e "\n =================== $val ==================="
+                #search and read Package.json within dir
+                SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
+                extract_version_from_pkgjson "${SCRIPT_VER}"
+                set-v-suggest "$result"
+                echo -e "\n${S_NOTICE} $val changes detected bump version: FROM $result TO $RESULT_TAG \n"
+
+                #do-package_JSON_file-bump "$result" "$RESULT_TAG" "$val"
+            fi
+        fi
+
+    done
 }
 
 do-packagefile-bump() {

@@ -17,6 +17,7 @@ REL_NOTE=""
 REL_PREFIX="release-"
 COMMIT_MSG_PREFIX="chore: " # Commit msg prefix for the file changes this script makes
 PUSH_DEST="origin"
+PARENT_PROJECTS_DIR=()
 
 JSON_FILES=()
 
@@ -30,22 +31,24 @@ main() {
 
     check-branch-notexist
     check-tag-exists
+    check_parent_project_files_changed
     echo -e "\n${S_LIGHT}------"
 
     # Update files
-    do-packagefile-bump
-    bump-json-files
-    do-versionfile
-    do-changelog
-    do-branch
-    do-commit
-    do-tag
-    do-push
+    do-update-parent-project
+    # do-packagefile-bump
+    # bump-json-files
+    # do-versionfile
+    # do-changelog
+    # do-branch
+    # do-commit
+    # do-tag
+    # do-push
 
-    echo -e "\n${S_LIGHT}------"
-    echo -ne "\n${I_OK} ${S_NOTICE}"
-    capitalise "$(get-commit-msg)"
-    echo -e "\n${I_END} ${GREEN}Done!\n"
+    # echo -e "\n${S_LIGHT}------"
+    # echo -ne "\n${I_OK} ${S_NOTICE}"
+    # capitalise "$(get-commit-msg)"
+    # echo -e "\n${I_END} ${GREEN}Done!\n"
 }
 
 # Execute script when it is executed as a script, and when it is brought into the environment with source (so it can be tested)
