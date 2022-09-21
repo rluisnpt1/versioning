@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Commits
 
 -  fiz scripts [`8e21fb3`](https://github.com/rluisnpt1/versioning/commit/8e21fb360c783df802e50cb41770e435d3d4f7e0)
+- chore: updated package.json, updated package-lock.json, bumped to [`9401425`](https://github.com/rluisnpt1/versioning/commit/9401425b8b4b4cb119baa2247d0bde17bfdeef6f)
+- chore: updated package.json, updated package-lock.json, bumped to [`c2bb1b5`](https://github.com/rluisnpt1/versioning/commit/c2bb1b510372a3a801619e2225e18b3c52765565)
 - chore: updated package.json, updated package-lock.json, bumped to updated package.json, updated package-lock.json, bumped to [`eb8131a`](https://github.com/rluisnpt1/versioning/commit/eb8131a570ee8dbe26ce11ad0fac63718dda2483)
 - chore: updated package.json, updated package-lock.json, bumped to [`6b0b6d0`](https://github.com/rluisnpt1/versioning/commit/6b0b6d04dcc9e532f45aa68a2ca366b91de8c685)
 
