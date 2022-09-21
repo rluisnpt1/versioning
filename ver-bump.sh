@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -o pipefail -e
 # shellcheck disable=SC1090,SC2034,SC1017
 true
 
@@ -28,11 +28,11 @@ main() {
     process-arguments "$@"
     check-commits-exist
     process-version
-
+    echo -e "\n${S_LIGHT}Checking git branch, tags and commits..."
     check-branch-notexist
     check-tag-exists
-    check_parent_project_files_changed
-    echo -e "\n${S_LIGHT}------"
+    #check_parent_project_files_changed
+    echo -e "\n${S_LIGHT}----------File Updates----------------"
 
     # Update files
     do-update-parent-project

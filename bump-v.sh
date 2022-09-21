@@ -38,7 +38,7 @@ process-arguments() {
         u)
             FLAG_BUMP_MINOR=false
             FLAG_BUMP_MINOR=${OPTARG} # Replace default with user input
-            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Update Minor Version when bumping <${S_NORM}${FLAG_BUMP_MINOR}${S_LIGHT}>, as the last action in this script."
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Update Minor Version when bumping <${S_NORM}${FLAG_BUMP_MINOR}${S_LIGHT}>"
             ;;
         p)
             FLAG_PUSH=true
@@ -146,8 +146,8 @@ do-commit() {
 
 # Create a Git tag using the SemVar
 do-tag() {
-    OLD="$1"
-    V_NEW="$2"
+    local OLD="$1"
+    local V_NEW="$2"
     if [ -z "${REL_NOTE}" ]; then
         # Default release note
         git tag -a "${V_NEW}" -m "Tag to a new version "$OLD" ---> ${V_NEW}."

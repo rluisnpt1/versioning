@@ -3,6 +3,8 @@
 # shellcheck disable=SC2288
 true
 
+GET_LIST_FILES_CHANGED_LAST_COMMIT=$(git show --oneline --name-only --pretty='' HEAD)
+
 is_number() {
     case "$1" in
     '' | *[!0-9]*) return 0 ;;
@@ -26,38 +28,6 @@ usage() {
 
         eval "${env_var}=\"${env_var_val}\""
     done
-
-    # rip off the oh-my-zsh logo, clearly ;)
-    printf "%s _ _  %s___  %s___ %s     %s ___  %s_ _ %s __ __ %s ___  %s\n" "${RAINBOW[@]}" "$RAINBOW_RST"
-    printf "%s| | |%s| __>%s| . \%s ___ %s| . >%s| | |%s|  \  \%s| . \ %s\n" "${RAINBOW[@]}" "$RAINBOW_RST"
-    printf "%s| ' |%s| _> %s|   /%s|___|%s| . \%s| ' |%s|     |%s|  _/ %s\n" "${RAINBOW[@]}" "$RAINBOW_RST"
-    printf "%s|__/ %s|___>%s|_\_\%s     %s|___/%s\___/%s|_|_|_|%s|_|   %s\n" "${RAINBOW[@]}" "$RAINBOW_RST"
-
-    echo -e "\t\t\t${LIGHTGRAY}    Version: $S_WARN${SCRIPT_VER}"
-
-    echo -e "${S_NORM}${BOLD}Description:${RESET}" \
-        "\nThis script automates bumping the git software project's version automatically." \
-        "\nIt does several things that are typically required for releasing a Git repository, like git tagging, automatic updating of CHANGELOG.md, and incrementing the version number in various JSON files."
-
-    echo -e "\n${S_NORM}${BOLD}Usage:${RESET}" \
-        "\n${SCRIPT_NAME} [-v <version number>] [-m <release message>] [-j <file1>] [-j <file2>].. [-n] [-c] [-p] [-h]" 1>&2
-
-    echo -e "\n${S_NORM}${BOLD}Options:${RESET}"
-    echo -e "$S_WARN-v$S_NORM <version number>\tSpecify a manual version number"
-    echo -e "$S_WARN-m$S_NORM <release message>\tCustom release message."
-    echo -e "$S_WARN-f$S_NORM <filename.json>\tUpdate version number inside JSON files." \
-        "\n\t\t\tFor multiple files, add a separate -f option for each one, for example:" \
-        "\n\t\t\t${S_NORM}ver-bump -f src/plugin/package.json -f composer.json"
-    echo -e "$S_WARN-p$S_NORM \t\t\tPush release branch to ORIGIN."
-    echo -e "$S_WARN-n$S_NORM \t\t\tDisable commit after tagging release."
-    echo -e "$S_WARN-b$S_NORM \t\t\tDisable commit to a new release-x.x.x branch."
-    echo -e "$S_WARN-c$S_NORM \t\t\tDisable updating CHANGELOG.md automatically with new commits since last release tag."
-    echo -e "$S_WARN-l$S_NORM \t\t\tPause enabled for amending CHANGELOG.md"
-    echo -e "$S_WARN-h$S_NORM \t\t\tShow this help message.\n"
-
-    echo -e "${S_NORM}${BOLD}Credits:${S_LIGHT}" \
-        "\n${SCRIPT_AUTH} ${RESET}" \
-        "\n${SCRIPT_HOME}\n"
 }
 
 # Process script options
@@ -65,7 +35,7 @@ process-arguments() {
     local OPTIONS OPTIND OPTARG
 
     # Get positional parameters
-    while getopts ":v:p:m:f:ahbncl" OPTIONS; do # Note: Adding the first : before the flags takes control of flags and prevents default error msgs.
+    while getopts ":v:p:m:u:f:ahbncl" OPTIONS; do # Note: Adding the first : before the flags takes control of flags and prevents default error msgs.
         case "$OPTIONS" in
         h)
             # Show help
@@ -80,6 +50,11 @@ process-arguments() {
             REL_NOTE=$OPTARG
             # Custom release note
             echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Release note: ${S_NORM} '$REL_NOTE'"
+            ;;
+        u)
+            FLAG_BUMP_MINOR=false
+            FLAG_BUMP_MINOR=${OPTARG} # Replace default with user input
+            echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}Update Minor Version when bumping <${S_NORM}${FLAG_BUMP_MINOR}${S_LIGHT}>, as the last action in this script."
             ;;
         f)
             echo -e "\n${S_LIGHT}Option set: ${S_NOTICE}JSON file via [-f]: <${S_NORM}${OPTARG}${S_LIGHT}>"
@@ -219,12 +194,21 @@ set-v-suggest() {
 
     # If major & minor are numbers, then proceed to increment patch
     if [ "$IS_NO" = 1 ]; then
-        is_number "$V_PATCH"
-        if [ "$?" == 1 ]; then
-            V_PATCH=$((V_PATCH + 1)) # Increment
+
+        if [ "$FLAG_BUMP_MINOR" = true ]; then
+            V_MINOR=$((V_MINOR + 1))
+            V_PATCH=$((0))
             V_SUGGEST="$V_MAJOR.$V_MINOR.$V_PATCH"
             return
+        else
+            is_number "$V_PATCH"
+            if [ "$?" == 1 ]; then
+                V_PATCH=$((V_PATCH + 1)) # Increment
+                V_SUGGEST="$V_MAJOR.$V_MINOR.$V_PATCH"
+                return
+            fi
         fi
+
     fi
 
     echo -e "\n${I_WARN} ${S_WARN}Warning: ${S_QUESTION}${1}${S_WARN} doesn't look like a SemVer compatible version number! Couldn't automatically bump the patch value. \n"
@@ -255,83 +239,105 @@ extract_version_from_pkgjson() {
     RETURNV=
     for env_var in "${SCRIPT_VER[@]}"; do
         env_var_val=$(eval "echo \$${env_var}" | awk -F: '{ print $2 }' | sed 's/[",]//g' | sed "s/^[ \t]*//")
-        printf "\n Reading package.json version at $val : $env_var_val"
         RETURNV="$env_var_val"
     done
-    result="$RETURNV"
+    PCKJ_VERSION="$RETURNV"
 }
-check_parent_project_files_changed() {
 
-    echo -e "\n${S_NOTICE}Cheking commits into parents projects"
+do_message() {
+    local proj=$1
+    local message_1=$2
+    local message_2=$3
 
-    GET_LIST_FILES_CHANGED_LAST_COMMIT=$(git show --oneline --name-only --pretty='' HEAD)
-    proj_dir_name=("")
-    for value in "$GET_LIST_FILES_CHANGED_LAST_COMMIT"; do
-        ## get name of first subdirectory
-        projectDirRepo="$(cut -d '/' -f 1 <<<"$value")"
-        # Add new element at the end of the array
-        proj_dir_name="$proj_dir_name $projectDirRepo"
-    done
-    PARENT_PROJECTS_DIR="$proj_dir_name"
-    PARENT_PROJECTS_DIR=$(printf '%s\n' "$PARENT_PROJECTS_DIR" | awk -v RS='[,[:space:]]+' '!a[$0]++{printf "%s%s", $0, RT}')
-    PARENT_PROJECTS_DIR="${PARENT_PROJECTS_DIR%,*}"
+    MESSAGE=""
+    if [ "$FLAG_BUMP_MINOR" = true ]; then
+        MESSAGE="ATTENTION release MINOR version"
+    else
+        MESSAGE="PATCH version"
+    fi
+    echo -e " --Reading package.json ...\n --${S_NORM}${I_WARN}${proj}: Has changes to be bumped: Actual ${message_1} $MESSAGE TO ${message_2}"
 }
 
 do-update-parent-project() {
-
-    echo -e "\n${S_NOTICE} updating parent project package json"
-
-    # Set space as the delimiter
-    IFS=' '
-
-    # Read the split words into an array based on space delimiter
-    read -a strarr <<<"$PARENT_PROJECTS_DIR"
-
-    # Print each value of the array by using the loop
-    for val in "${strarr[@]}"; do
-
-        echo "$val"
-
-        PKG_JSON="$MODULE_DIR/$val"
-        #check if is directory
+    echo -e "${S_NOTICE}Cheking commits into parents projects."
+    PARENT_PROJECTS_DIR=$(cut -d '/' -f 1 <<<"$GET_LIST_FILES_CHANGED_LAST_COMMIT")
+    #GET UNIQ VALUES
+    read -ra strarr <<<$(awk -v RS="[ \n]" -v ORS=" " '!($0 in a){print;a[$0]}' <(echo $PARENT_PROJECTS_DIR))
+    for project_dir in "${strarr[@]}"; do
+        PKG_JSON="${MODULE_DIR}/${project_dir}"
+        # check if is directory
         if [[ -d $PKG_JSON ]]; then
+
             #In case of the procject math then extract version from json file
-            if [[ "$val" == "components" || "$val" == "core" || "$val" == "storybook" ]]; then
-                echo -e "\n =================== $val ==================="
+            if [[ "$project_dir" == "components" || "$project_dir" == "core" || "$project_dir" == "storybook" ]]; then
                 #search and read Package.json within dir
                 SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
+                echo -e "${S_NOTICE} --Changes detected in Parent Project == $project_dir ==\n --./$project_dir package.json$SCRIPT_VER"
                 extract_version_from_pkgjson "${SCRIPT_VER}"
-                set-v-suggest "$result"
-                echo -e "\n${S_NOTICE} $val changes detected bump version: FROM $result TO $RESULT_TAG \n"
-
-                #do-package_JSON_file-bump "$result" "$RESULT_TAG" "$val"
+                set-v-suggest "$PCKJ_VERSION"
+                do_message ${project_dir} ${PCKJ_VERSION} ${V_SUGGEST}
+                do-package_JSON_file-bump "$PCKJ_VERSION" "$V_SUGGEST" "$project_dir"
+                V_SUGGEST=""
+                PCKJ_VERSION=""
             fi
         fi
 
     done
+
+}
+
+do-package_JSON_file-bump() {
+    local V_PREV_TAG_LOCAL="$1"
+    local V_NEW_TAG_LOCAL="$2"
+    local V_PKG_JSON_DIR="$3"
+
+    NOTICE_MSG="<${S_NORM}package.json${S_NOTICE}>"
+
+    if [ "$V_NEW_TAG_LOCAL" = "$V_PREV_TAG_LOCAL" ]; then
+        echo -e "\n${I_WARN}${NOTICE_MSG}${S_WARN} already contains version ${V_NEW_TAG_LOCAL}."
+    else
+        #IF CONTAINS SUB PROJECT, CHECK IF PARENT IS DIRECTORY
+        if [[ ! -z "$V_PKG_JSON_DIR" && -d $V_PKG_JSON_DIR ]]; then
+
+            ## NAVIGATE INTO DIR
+            cd "./$V_PKG_JSON_DIR/"
+            do-packagefile-bump "$V_NEW_TAG_LOCAL" "$V_PKG_JSON_DIR"
+            # NAVIGATE OUT DIRECTORY
+            cd ..
+        elif [[ -z "$V_PKG_JSON_DIR" && -d $V_PKG_JSON_DIR ]]; then
+            do-packagefile-bump "$V_NEW_TAG_LOCAL" "$V_PKG_JSON_DIR"
+        fi
+
+    fi
 }
 
 do-packagefile-bump() {
-    NOTICE_MSG="<${S_NORM}package.json${S_NOTICE}>"
-    if [ "$V_NEW" = "$V_PREV" ]; then
-        echo -e "\n${I_WARN}${NOTICE_MSG}${S_WARN} already contains version ${V_NEW}."
-    else
-        NPM_MSG=$(npm version "${V_NEW}" --git-tag-version=false --force 2>&1)
-        # shellcheck disable=SC2181
-        if [ ! "$?" -eq 0 ]; then
-            echo -e "\n${I_STOP} ${S_ERROR}Error updating <package.json> and/or <package-lock.json>.\n\n$NPM_MSG\n"
-            exit 1
-        else
-            git add package.json
-            GIT_MSG+="updated package.json, "
-            if [ -f package-lock.json ]; then
-                git add package-lock.json
-                GIT_MSG+="updated package-lock.json, "
-                NOTICE_MSG+=" and <${S_NORM}package-lock.json${S_NOTICE}>"
-            fi
-            echo -e "\n${I_OK} ${S_NOTICE}Bumped version in ${NOTICE_MSG}."
-        fi
+    local V_PROJECT_DIR="./"
+
+    if [ ! -z "$1" ]; then
+        V_NEW="$1"
     fi
+
+    if [ ! -z "$2" ]; then
+        V_PROJECT_DIR="$2"
+    fi
+
+    NPM_MSG=$(npm version "${V_NEW}" --git-tag-version=false --force 2>&1)
+    # shellcheck disable=SC2181
+    if [ ! "$?" -eq 0 ]; then
+        echo -e "\n${I_STOP} ${S_ERROR}Error updating <package.json> and/or <package-lock.json>.\n\n$NPM_MSG\n"
+        exit 1
+    else
+        git add package.json
+        GIT_MSG+="chore: updated package.json, "
+        if [ -f package-lock.json ]; then
+            git add package-lock.json
+            GIT_MSG+="updated package-lock.json, "
+            NOTICE_MSG+=" and <${S_NORM}package-lock.json${S_NOTICE}>"
+        fi
+        echo -e "\n${I_OK} $V_PROJECT_DIR ${S_NOTICE}Bumped version in ${NOTICE_MSG}.\n"
+    fi
+
 }
 
 # Change `version:` value in JSON files, like packager.json, composer.json, etc
