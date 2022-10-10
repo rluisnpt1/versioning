@@ -1,6 +1,6 @@
 {
-  "name": "webproj2",
-  "version": "1.2.74",
+  "name": "core",
+  "version": "1.2.77",
   "description": "",
   "main": "index.js",
   "scripts": {
