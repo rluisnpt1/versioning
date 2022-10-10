@@ -386,7 +386,7 @@ do-versionfile() {
         git add VERSION
 
         echo -e "\n${I_OK} ${S_NOTICE}Updated [${S_NORM}VERSION${S_NOTICE}] file." \
-            "\n${I_WARN} ${S_ERROR}Deprecation warning: using a <${S_NORM}VERSION${S_ERROR}> file is deprecated since v0.2.0 - support will be removed in future versions."
+        "\n${I_WARN} ${S_ERROR}Deprecation warning: using a <${S_NORM}VERSION${S_ERROR}> file is deprecated since v0.2.0 - support will be removed in future versions."
     fi
 }
 
@@ -518,6 +518,7 @@ do-push() {
         else
             echo -e "\n${I_OK} ${S_NOTICE}$PUSH_MSG"
         fi
+
         ;;
     esac
 }
