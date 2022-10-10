@@ -317,7 +317,6 @@ do-packagefile-bump() {
     if [ ! -z "$1" ]; then
         V_NEW="$1"
     fi
-
     if [ ! -z "$2" ]; then
         V_PROJECT_DIR="$2"
     fi
