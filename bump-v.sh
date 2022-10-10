@@ -94,9 +94,6 @@ capitalise() {
 
 get-commit-msg() {
     local CMD
-    V_PREV="$1"
-    V_NEW="$2"
-
     CMD=$([ ! "${V_PREV}" = "${V_NEW}" ] && echo "${V_PREV} ->" || echo "to")
     echo bumped "$CMD" "$V_NEW"
 }
@@ -130,14 +127,24 @@ do-branch() {
 
 # Stage & commit all files modified by this script
 do-commit() {
+    local prefix=""
+    local message_body=""
+
     [ "$FLAG_NOCOMMIT" = true ] && return
+
+    if [ ! -z "$1" ]; then
+        message_body=$1
+    fi
 
     GIT_MSG+="$(get-commit-msg)"
     echo -e "\n${S_NOTICE}Committing..."
-    COMMIT_MSG=$(git commit -m "${COMMIT_MSG_PREFIX}${GIT_MSG}" 2>&1)
+
+    COMMIT_MSG=$(git commit -m "${COMMIT_MSG_PREFIX}${GIT_MSG}" -m "${message_body}" 2>&1)
     # shellcheck disable=SC2181
     if [ ! "$?" -eq 0 ]; then
         echo -e "\n${I_STOP} ${S_ERROR}Error\n$COMMIT_MSG\n"
+        git restore . --staged
+        git restore .
         exit 1
     else
         echo -e "\n${I_OK} ${S_NOTICE}$COMMIT_MSG"
@@ -185,38 +192,40 @@ do-push() {
 
 extract_version_from_json() {
     # NPM environment variables are fetched with cross-platform tool cross-env (overkill to use a dependency, but seems the only way AFAIK to get npm vars)
-    SCRIPT_VER="$1"
+    local SCRIPT_VER="$1"
     RETURNV=
     for env_var in "${SCRIPT_VER[@]}"; do
         env_var_val=$(eval "echo \$${env_var}" | awk -F: '{ print $2 }' | sed 's/[",]//g' | sed "s/^[ \t]*//")
-        printf "\n Reading package.json version at $val : $env_var_val"
         RETURNV="$env_var_val"
     done
-    result="$RETURNV"
+    RESULT_VER="$RETURNV"
 }
 updatePackageJsonVersion() {
-    V_NEW_TAG_LOCAL="$1"
+    local V_NEW_TAG_LOCAL="$1"
+    echo "${I_TIME} Updationg to a new version..."
     NPM_MSG=$(npm version "${V_NEW_TAG_LOCAL}" --git-tag-version=false 2>&1)
     # shellcheck disable=SC2181
     if [ ! "$?" -eq 0 ]; then
         echo -e "\n${I_STOP} ${S_ERROR}Error updating <package.json> and/or <package-lock.json>.\n\n$NPM_MSG\n"
+        git restore . --staged
+        git restore .
         exit 1
     else
         git add package.json
-        GIT_MSG+="updated package.json, "
+        GIT_MSG+="updated package.json "
         if [ -f package-lock.json ]; then
             git add package-lock.json
-            GIT_MSG+="updated package-lock.json, "
+            GIT_MSG+=",package-lock.json, "
             NOTICE_MSG+=" and <${S_NORM}package-lock.json${S_NOTICE}>"
         fi
-        echo -e "\n${I_OK} ${S_NOTICE}Bumped version in ${NOTICE_MSG}."
+        echo -e "\n${I_OK} ${S_NOTICE}Bumped version in ${NOTICE_MSG}. To ${V_NEW_TAG_LOCAL}"
     fi
 }
 
 do-package_JSON_file-bump() {
-    V_PREV_TAG_LOCAL="$1"
-    V_NEW_TAG_LOCAL="$2"
-    V_PKG_JSON_DIR="$3"
+    local V_PREV_TAG_LOCAL="$1"
+    local V_NEW_TAG_LOCAL="$2"
+    local V_PKG_JSON_DIR="$3"
 
     NOTICE_MSG="<${S_NORM}package.json${S_NOTICE}>"
 
@@ -239,24 +248,109 @@ do-package_JSON_file-bump() {
 }
 
 do-new-tag-version() {
-    LOCAL_VERSION="$1"
+    local LOCAL_VERSION="$1"
     #replace . with space so can split into an array
-    VERSION_BITS=(${LOCAL_VERSION//./ })
+    local VERSION_BITS=(${LOCAL_VERSION//./ })
     #get number parts and increase last one by 1
-    V_MAJOR=${VERSION_BITS[0]}
-    V_MINOR=${VERSION_BITS[1]}
-    PATCH=${VERSION_BITS[2]}
+    local V_MAJOR=${VERSION_BITS[0]}
+    local V_MINOR=${VERSION_BITS[1]}
+    local PATCH=${VERSION_BITS[2]}
 
     if [ "$FLAG_BUMP_MINOR" = true ]; then
         V_MINOR=$((V_MINOR + 1))
+        PATCH=$((0))
     else
         PATCH=$((PATCH + 1))
     fi
-
     #create new tag
     RESULT_TAG="${V_MAJOR}.${V_MINOR}.${PATCH}"
 }
 
+read_version_from_jsonfile() {
+    local DIR_NAME=$1
+    if [ -z "$DIR_NAME" ]; then
+        SCRIPT_VER=$(grep version package.json | head -1)
+        PROJ_NAME=$(grep name package.json | head -1)
+    else
+        SCRIPT_VER=$(cd "$DIR_NAME" && grep version package.json | head -1)
+        PROJ_NAME=$(cd "$DIR_NAME" && grep name package.json | head -1)
+    fi
+}
+# Dump git log history to CHANGELOG.md
+do-changelog() {
+    [ "$FLAG_NOCHANGELOG" = true ] && return
+    local COMMITS_MSG LOG_MSG RANGE
+
+    RANGE=$([ "$(git tag -l v"${V_PREV}")" ] && echo "v${V_PREV}...HEAD")
+    COMMITS_MSG=$(git log --pretty=format:"- %s" "${RANGE}" 2>&1)
+    # shellcheck disable=SC2181
+    if [ ! "$?" -eq 0 ]; then
+        echo -e "\n${I_STOP} ${S_ERROR}Error getting commit history since last version bump for logging to CHANGELOG.\n\n$LOG_MSG\n"
+        git restore . --staged
+        git restore .
+        exit 1
+    fi
+
+    [ -f CHANGELOG.md ] && ACTION_MSG="updated" || ACTION_MSG="created"
+    # Add info to commit message for later:
+    GIT_MSG+="${ACTION_MSG} CHANGELOG.md, "
+
+    # Add heading
+    echo "## $V_NEW ($NOW)" >tmpfile
+
+    # Log the bumping commit:
+    # - The final commit is done after do-changelog(), so we need to create the log entry for it manually:
+    LOG_MSG="${GIT_MSG}$(get-commit-msg)"
+    # LOG_MSG="$( capitalise "${LOG_MSG}" )" # Capitalise first letter
+    echo "- ${COMMIT_MSG_PREFIX}${LOG_MSG}" >>tmpfile
+    # Add previous commits
+    [ -n "$COMMITS_MSG" ] && echo "$COMMITS_MSG" >>tmpfile
+
+    echo -en "\n" >>tmpfile
+
+    if [ -f CHANGELOG.md ]; then
+        # Append existing log
+        cat CHANGELOG.md >>tmpfile
+    else
+        echo -e "\n${S_WARN}An existing [${S_NORM}CHANGELOG.md${S_WARN}] file was not found. Creating one..."
+    fi
+
+    mv tmpfile CHANGELOG.md
+
+    echo -e "\n${I_OK} ${S_NOTICE}$(capitalise "${ACTION_MSG}") [${S_NORM}CHANGELOG.md${S_NOTICE}] file."
+
+    # Optionally pause & allow user to open and edit the file:
+    if [ "$FLAG_CHANGELOG_PAUSE" = true ]; then
+        echo -en "\n${S_QUESTION}Make adjustments to [${S_NORM}CHANGELOG.md${S_QUESTION}] if required now. Press <enter> to continue."
+        read -r
+    fi
+
+    # Stage log file, to commit later
+    git add CHANGELOG.md
+}
+
+#
+
+process_versioning() {
+    local dir=$1
+    #search and read Package.json within dir
+    read_version_from_jsonfile ${dir}
+    extract_version_from_json "${SCRIPT_VER}"
+    SCRIPT_VER=""
+    do-new-tag-version "$RESULT_VER"
+    echo -e "\n${I_WARN}${LIGHTBLUE}PATH ./$directory_name: ${LIGHTYELLOW}Changes detected, need bump version: FROM $RESULT_VER TO $RESULT_TAG"
+    do-package_JSON_file-bump "$RESULT_VER" "$RESULT_TAG" "$directory_name"
+    V_PREV="$RESULT_VER"
+    V_NEW="$RESULT_TAG"
+    do-commit "./$directory_name project version: updated from $RESULT_VER to $RESULT_TAG"
+
+    #Clean Variables
+    RESULT_VER=""
+    RESULT_TAG=""
+    V_PREV=""
+    V_NEW=""
+    echo -e "\n=============================================================================="
+}
 ###########################################################################################################################################################################
 process-arguments "$@"
 
@@ -285,45 +379,40 @@ GET_LIST_FILES_CHANGED_LAST_COMMIT=$(git show --oneline --name-only --pretty='' 
 #Current commit tag only tag if no tag already (would be better if the git describe command above could have a silent option)
 if [ -z "$CURRENT_COMMIT_TAG" ]; then
 
-    ## Check array and return a list of path
-    GetParentOfFilesChangedInGitCommit "$GET_LIST_FILES_CHANGED_LAST_COMMIT"
+    # ## Check array and return a list of path
+    # GetParentOfFilesChangedInGitCommit "$GET_LIST_FILES_CHANGED_LAST_COMMIT"
+    # # Set space as the delimiter
+    # IFS=' '
+    # # Read the split words into an array based on space delimiter
+    # read -a strarr <<<"$PARENT_PROJECTS_DIR"
+    # # Print each value of the array by using the loop
+    # for directory_name in "${strarr[@]}"; do
 
-    # Set space as the delimiter
-    IFS=' '
-
-    # Read the split words into an array based on space delimiter
-    read -a strarr <<<"$PARENT_PROJECTS_DIR"
-    # Print each value of the array by using the loop
-    for val in "${strarr[@]}"; do
-        message() {
-            printf "\n $1 changes detected bump version: FROM $2 TO $3 \n"
-        }
-        PKG_JSON="$MODULE_DIR/$val"
+    # done
+    PARENT_PROJECTS_DIR=$(cut -d '/' -f 1 <<<"$GET_LIST_FILES_CHANGED_LAST_COMMIT")
+    #GET UNIQ VALUES
+    read -ra strarr <<<$(awk -v RS="[ \n]" -v ORS=" " '!($0 in a){print;a[$0]}' <(echo $PARENT_PROJECTS_DIR))
+    for directory_name in "${strarr[@]}"; do
+        PKG_JSON="$MODULE_DIR/$directory_name"
         #check if is directory
         if [[ -d $PKG_JSON ]]; then
             #In case of the procject math then extract version from json file
-            if [[ "$val" == "components" || "$val" == "core" || "$val" == "storybook" ]]; then
-                echo -e "\n =================== $val ==================="
-                #search and read Package.json within dir
-                SCRIPT_VER=$(cd "$PKG_JSON" && grep version package.json | head -1)
-                extract_version_from_json "${SCRIPT_VER}"
-                do-new-tag-version "$result"
-                message "$val" "$result" "$RESULT_TAG"
-                do-package_JSON_file-bump "$result" "$RESULT_TAG" "$val"
+            if [[ "$directory_name" == "components" || "$directory_name" == "core" || "$directory_name" == "storybook" ]]; then
+                process_versioning ${PKG_JSON}
             fi
         fi
-
+        PKG_JSON=""
+        directory_name=""
     done
+    process_versioning ""
+    do-changelog
+    # # Default release note
+    # echo "${S_NORM}$(npm run changelog)"
 
-    echo -e "\n =================== \n Bumping GRAVITY PROJECT to a new Version: FROM $VERSION to $V_NEW_TAG"
-    #do-package_JSON_file-bump "$VERSION" "$V_NEW_TAG"
-    # Default release note
-    echo "$(npm run changelog)"
-
-    do-branch "$V_NEW_TAG"
-    do-commit
-    do-tag "$VERSION" "$V_NEW_TAG"
-    do-push "$V_NEW_TAG"
+    # do-branch "$V_NEW_TAG"
+    # do-commit
+    # do-tag "$VERSION" "$V_NEW_TAG"
+    # do-push "$V_NEW_TAG"
     #echo -e "\n =================== \n ✅; The new Tag was created and pushed: $V_NEW_TAG"
 else
     echo -e "\n =================== \n 🏁; This commit is already tagged as: $CURRENT_COMMIT_TAG"

@@ -2,12 +2,12 @@
     "template": "./ci_scripts/keepachangelog.hbs",
     "commitLimit": false,
     "unreleased": true,
-    "issueUrl": "http://jira.user.com.br/browse/{id}",
+    "issueUrl": "https://devtrack.vanderlande.com/projects/GRAV/issues/{id}",
     "replaceText": {
-        "[Ff]eature:": "",
+        "[Ff]eature:": "feat",
         "[Ff]ix:": "",
         "[Bb]reak:": "",
-        "([A-Z]+-\\d+)": "[$1](http://jira.user.com.br/browse/$1) - "
+        "([A-Z]+-\\d+)": "[$1](https://devtrack.vanderlande.com/projects/GRAV/issues/$1) - "
     },
     "includeBranch": [
         "dev",
