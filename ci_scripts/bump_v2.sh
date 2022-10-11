@@ -137,66 +137,82 @@ function do-version() {
 }
 
 UPDATE_STATUS=false
+SEACH_GIT_LOG=""
+if ([ "$branch" = "dev" ] || [ "$branch" = "develop" ]); then
+    SEACH_GIT_LOG="git diff --no-merges --name-only HEAD^"
+else
+    if ([ "$branch" = "main" ]); then
+        OLD_TAG="$(git tag --sort=committerdate | grep -E '^[0-9]' | tail -1)"
+        LATEST_TAG="$(git tag | grep -E '^[0-9]' | sort -V | tail -1)"
+        SEACH_GIT_LOG="git diff --no-merges --name-only $OLD_TAG..$LATEST_TAG^"
+    fi
+fi
+
 # HEAD is the current commit, HEAD^ is the last commit
-git diff --no-merges --name-only HEAD^ | awk -F/ '{print $1}' | sort -u |
-    {
-        while read changed_file; do
-            # echo "$MODULE_DIR"
-            DIR=$changed_file
+GIT_T="$(
+    ${SEACH_GIT_LOG} | awk -F/ '{print $1}' | sort -u |
+        {
+            while read changed_file; do
+                # echo "$MODULE_DIR"
+                echo "$changed_file"
+                DIR=$changed_file
 
-            PATH_S="$MODULE_DIR"
-            # Replace ci_script dir with subdir
-            PATH_S=${PATH_S/ci_scripts/$changed_file}
+                PATH_S="$MODULE_DIR"
+                # Replace ci_script dir with subdir
+                PATH_S=${PATH_S/ci_scripts/$changed_file}
+                echo "$PATH_S"
+                if [[ "$DIR" == "components" ||
+                    "$DIR" == "core" ||
+                    "$DIR" == "storybook" ||
+                    "$DIR" == "eslint-config" ||
+                    "$DIR" == "prettier-config" ||
+                    "$DIR" == "stylelint-config" ]]; then
 
-            if [[ "$DIR" == "components" ||
-                "$DIR" == "core" ||
-                "$DIR" == "storybook" ||
-                "$DIR" == "eslint-config" ||
-                "$DIR" == "prettier-config" ||
-                "$DIR" == "stylelint-config" ]]; then
+                    if [ -d $PATH_S ]; then
+                        NOTICE=""
+                        NOTICE="[Changes detected]:[/$changed_file] .."
+                        cd $PATH_S/
+                        get-json-version
+                        echo "$NOTICE $APP_NAME $APP_VERSION"
+                        do-version $APP_VERSION
 
-                if [ -d $PATH_S ]; then
-                    NOTICE=""
-                    NOTICE="[Changes detected]:[/$changed_file] .."
-                    cd $PATH_S/
-                    get-json-version
-                    echo "$NOTICE $APP_NAME $APP_VERSION"
-                    do-version $APP_VERSION
+                        if ($VERSION_BUMPED); then
+                            echo "[Scripts] bumping verion.. $NOTICE -> $SUGGESTED_VERSION"
+                            do-packagefile-bump $SUGGESTED_VERSION $APP_VERSION
+                            V_NEW=$SUGGESTED_VERSION
+                            V_PREV=$APP_VERSION
 
-                    if ($VERSION_BUMPED); then
-                        echo "[Scripts] bumping verion.. $NOTICE -> $SUGGESTED_VERSION"
-                        do-packagefile-bump $SUGGESTED_VERSION $APP_VERSION
-                        V_NEW=$SUGGESTED_VERSION
-                        V_PREV=$APP_VERSION
-
-                        do-commit
-                        V_NEW=""
-                        V_PREV=""
-                        UPDATE_STATUS=$VERSION_BUMPED
-                    else
-                        echo "[changes branch]: $branch is not (dev or main) version not bumped in $APP_NAME."
+                            do-commit
+                            V_NEW=""
+                            V_PREV=""
+                            UPDATE_STATUS=$VERSION_BUMPED
+                        else
+                            echo "[changes branch]: $branch is not (dev or main) version not bumped in $APP_NAME."
+                        fi
+                        cd ../ci_scripts
                     fi
-                    cd ../ci_scripts
+
                 fi
+            done #| sort -nr | head -n 1
 
-            fi
-        done #| sort -nr | head -n 1
+            #UPDATE ROOT PROJECT
+            # if [[ "$UPDATE_STATUS" == true ]]; then
+            #     cd ..
+            #     get-json-version
+            #     echo "[Changes detected][/root] : $APP_NAME $APP_VERSION"
+            #     do-version $APP_VERSION
+            #     V_PREV=$APP_VERSION
+            #     V_NEW=$SUGGESTED_VERSION
+            #     check-tag-exists
+            #     do-packagefile-bump $SUGGESTED_VERSION $APP_VERSION
+            #     do-commit
+            #     #TAG Tru pipeline
+            #     # do-tag "$V_PREV" "$V_NEW"
+            #     # do-push
+            #     V_NEW=""
+            #     V_PREV=""
+            # fi
+        }
+)"
 
-        #UPDATE ROOT PROJECT
-        if [[ "$UPDATE_STATUS" == true ]]; then
-            cd ..
-            get-json-version
-            echo "[Changes detected][/root] : $APP_NAME $APP_VERSION"
-            do-version $APP_VERSION
-            V_PREV=$APP_VERSION
-            V_NEW=$SUGGESTED_VERSION
-            check-tag-exists
-            do-packagefile-bump $SUGGESTED_VERSION $APP_VERSION
-            do-commit
-            #TAG Tru pipeline
-            # do-tag "$V_PREV" "$V_NEW"
-            # do-push
-            V_NEW=""
-            V_PREV=""
-        fi
-    }
+echo "$GIT_T"
