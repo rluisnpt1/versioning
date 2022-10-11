@@ -110,6 +110,7 @@ function do-push() {
         echo -e "\n${I_OK} ${S_NOTICE}$PUSH_MSG"
     fi
 }
+
 function do-version() {
     local version=$1
     BASE_LIST=($(echo $version | tr '.' ' '))
