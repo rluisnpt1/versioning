@@ -37,7 +37,7 @@ function do-packagefile-bump() {
                 GIT_MSG+="updated package-lock.json, "
                 NOTICE_MSG+=" and <${S_NORM}package-lock.json${S_NOTICE}>"
             fi
-            echo -e "\n${I_OK} ${S_NOTICE}Bumped version in ${NOTICE_MSG}.\n"
+
         fi
     fi
 }
@@ -148,7 +148,12 @@ git diff --no-merges --name-only HEAD^ | awk -F/ '{print $1}' | sort -u |
             # Replace ci_script dir with subdir
             PATH_S=${PATH_S/ci_scripts/$changed_file}
 
-            if [[ "$DIR" == "components" || "$DIR" == "core" || "$DIR" == "storybook" || "$DIR" == "eslint-config" || "$DIR" == "prettier-config" || "$DIR" == "stylelint-config" ]]; then
+            if [[ "$DIR" == "components" ||
+                "$DIR" == "core" ||
+                "$DIR" == "storybook" ||
+                "$DIR" == "eslint-config" ||
+                "$DIR" == "prettier-config" ||
+                "$DIR" == "stylelint-config" ]]; then
 
                 if [ -d $PATH_S ]; then
                     NOTICE=""
