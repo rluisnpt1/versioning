@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #
-#
 #  PROJE_DIR            # GIT_HOOKS PATH
 #  branch               # De branch (dev,main, master)
 #  UPDATE_STATUS        # IF the changes was applyed
