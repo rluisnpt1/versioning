@@ -44,7 +44,8 @@ reflog_message=$(git reflog -1)
 merged_branch_name=$(echo $reflog_message | cut -d" " -f 4 | sed "s/://")
 release_pattern="^release-([0-9]+)\.([0-9]+)\.(.*)$"
 hotfix_pattern="^hotfix-([0-9]+)\.([0-9]+)\.(.*)$"
-
+npm_version=$(npm version "${SUGGESTED_VERSION}" --git-tag-version=false --force 2>&1)
+## git add .
 if [ "$target_branch" = "master" ]; then
     if [[ "$merged_branch_name" =~ $release_pattern ]] || [[ "$merged_branch_name" =~ $hotfix_pattern ]]; then
 
